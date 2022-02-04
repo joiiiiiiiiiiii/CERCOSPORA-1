@@ -12,9 +12,7 @@ colHR80 = "blue"
 colHR85 = "orange"
 colHR90 = "green"
 colDIV =  "orange"
-# Hola
-#
-ccc
+
 # Funciones auxiliares
 
 

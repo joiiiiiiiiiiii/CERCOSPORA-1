@@ -1,5 +1,5 @@
 # CERCOSPORA
-# Vamos a añadir un cambio para subirlo a github
+
 Código para calcular riesgo de ataque de cercospora de acuerdo al modelo Rioja desarrollado por el GO de Enfermedades Foliares
 
 Dentro de los trabajos desarrollados para el GO Enfermedades Foliares se desarrolló un código para realizar el cálculo del riesgo de ataque de Cercospora en remolacha azucarera
