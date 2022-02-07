@@ -44,7 +44,7 @@ setwd("./..")
 DEBUG = FALSE # Si se hace = TRUE apareen algunos mensajes adicionales para controlar el proceso
 produccion = FALSE # TRUE  # Dejar esto en false si no se quiere que lleguen los e-mails a todo el mundo
 enviarEmailsSoloSiHayAlerta = FALSE #TRUE  # Dejar esto en true si se quiere que sólo lleguen los correos si el DIV de alguna de las estaciones procesadas en cada zona es superior a 2
-enviarEmails = FALSE #TRUE # En false no se manda ningún e-mail
+enviarEmails = TRUE # #TRUE # En false no se manda ningún e-mail
 salidaAzucareraAB = TRUE #FALSE #  # Dejar esto en false si no se quiere que lleguen los e-mails a las personas de azucarera (se les envía un informe reducido)
 
 
@@ -89,6 +89,8 @@ zonas = unique(datosAProcesar$zona)
 
 setwd(dirResultados)
 
+if(DEBUG) zona = zonas[1]
+
 for(zona in zonas)
 {
 	
@@ -126,6 +128,8 @@ for(zona in zonas)
 		direccionesEmailAzucarera = destinatariosEmailInformeAzucareraEnPruebas
 	}
 	
+	if(DEBUG) list(destinatariosEmail = destinatariosEmail, direccionesEmailAzucarera = direccionesEmailAzucarera)
+	
 	# Añadir algún mensaje extra en el body del correo electrónico
 	if(Sys.Date() == as.Date("2022-01-15"))
 	{	
@@ -152,7 +156,12 @@ for(zona in zonas)
 		mensajeExtraAzucarera = textoDIVs #''
 	
 	}
-
+	
+	if(DEBUG) print(list(mensajeExtra = mensajeExtra, mensajeExtraAzucarera = mensajeExtraAzucarera))
+	
+	if(DEBUG) print(paste("Se realiza envio de e-mail:", enviarEmails && alertaRiesgo))
+	if(DEBUG) print(paste("Se envian e-mails  a Azucarera:", salidaAzucareraAB && (enviarEmails && alertaRiesgo)))
+	
 	if(enviarEmails && alertaRiesgo)
 	{	
 		enviaEmail(destinatariosEmail, archivos, zona = toupper(zona), descripcion = 'Modelos SIAR y Americano con fechas de infección probable (no fecha de aparición de síntomas)', mensajeExtra = mensajeExtra)

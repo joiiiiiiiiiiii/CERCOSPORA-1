@@ -77,7 +77,7 @@ calculaDIV_ModeloAmericano_HumectUmbral <- function(temperaturas, humectaciones,
 }
 
 # Método Horario, modelo Rioja:
-calculaDIV_Horario_ModeloRioja <- function(temperaturas, humectaciones, vectorDIVHorario, valorUmbralMinimo, dataSamplingTime)
+CalculaDIV_Horario_ModeloRioja <- function(temperaturas, humectaciones, vectorDIVHorario, valorUmbralMinimo, dataSamplingTime, na.rm = TRUE)
 {
 	# temperaturas: un vector numérico con los valores de temperaturas (en ºC), su período de tiempo viene dado por dataSamplingTime ejemplo: dataSamplingTime = 60 ==> 1 hora => datos horarios
 	# humectaciones: un vector numérico con los valores de humectación (en minutos) ó humedad relativa (en tanto por ciento 0-100), idem temperaturas para dataSamplingTime
@@ -86,38 +86,58 @@ calculaDIV_Horario_ModeloRioja <- function(temperaturas, humectaciones, vectorDI
 	# vectorDIVHorario: vector de DIV según modelo Rioja
 	
 	
-	matrizTempHumect <- data.frame(temperaturas = temperaturas, humectaciones = humectaciones)
+	df.TempHumect <- data.frame(temperaturas = temperaturas, humectaciones = humectaciones, check.rows = FALSE)
 		
 	# Obtener qué horas han tenido humectación por encima del umbral
-	matrizTempHumect$hayHumectacion <- matrizTempHumect$humectaciones > valorUmbralMinimo
+	df.TempHumect$hayHumectacion <- df.TempHumect$humectaciones > valorUmbralMinimo
 				
-	# Establecer qué valor de la matrizDIV corresponde a esa humectacion y a esa temperatura
+	# Establecer qué valor del vector de DIV corresponde a esa humectacion y a esa temperatura
 
+	# Generamos escala de temperaturas de acuerdo a intervalos a artículo Sheng and Teng (1989)
 	escalaFarenheit <- c(seq(from = 60, to = 94, by = 1), 95)
 	escalaCelsius <- (escalaFarenheit-32) * 5/9
-		
-	matrizTempHumect$DIVHorario <- 0
-	for(fila in 1:nrow(matrizTempHumect))
+	
+	df.TempHumect$DIVHorario <- 0
+	for(fila in 1:nrow(df.TempHumect))
 	{
-		if(matrizTempHumect$temperaturas[fila] > escalaCelsius[1] &&			
-			matrizTempHumect$temperaturas[fila] < (last(escalaCelsius) + 0.5) &&
-			matrizTempHumect$hayHumectacion[fila])
+		if(df.TempHumect$temperaturas[fila] > escalaCelsius[1] &&			
+			df.TempHumect$temperaturas[fila] < (last(escalaCelsius) + 0.5) &&
+			df.TempHumect$hayHumectacion[fila])
 		{
-			matrizTempHumect$DIVHorario[fila] <- vectorDIVHorario$DIVHorario[which.min(abs(escalaCelsius - matrizTempHumect$temperaturas[fila]))] * dataSamplingTime/60 #dataSamplingTime/60 corrección a horas
+			df.TempHumect$DIVHorario[fila] <- vectorDIVHorario$DIVHorario[which.min(abs(escalaCelsius - df.TempHumect$temperaturas[fila]))] * dataSamplingTime/60 #dataSamplingTime/60 corrección a horas
 		}
 	}
+
+
+	if(any(is.na(temperaturas)) | any(is.na(humectaciones)))
+	{
+		if(!na.rm) stop("Algún NA en vector temperaturas o humectaciones, na.rm = TRUE")
+		warning(paste("Algún NA en vector temperaturas o humectaciones, DIV puede ser no valido en posiciones",
+				which(is.na(temperaturas)), "vector temperaturas, o", which(is.na(humectaciones)), "vector humectaciones"))
+	}
 		
-	return(list(DIV_Horario_Acumulado = sum(matrizTempHumect$DIVHorario, na.rm = TRUE),
-				DIV_Horario = matrizTempHumect$DIVHorario, matrizTempHumect = matrizTempHumect)) 
+	return(list(DIV_Horario_Acumulado = sum(df.TempHumect$DIVHorario, na.rm = TRUE),
+				DIV_Horario = df.TempHumect$DIVHorario,
+				 df.TempHumect = df.TempHumect)) 
 }
 # # TEST
-# calculaDIV_Horario_ModeloRioja_ModeloRioja(temperaturas = c(15, 16.5, 16, 36, 16, 0), humectaciones = c(30, 30, 0, 30, 30, 30),
-						# vectorDIVHorario, valorUmbralMinimo = 5, dataSamplingTime = 60)
-	
+## Distintas temperaturas en los límites del vectorDIVHorario
+# CalculaDIV_Horario_ModeloRioja(temperaturas = c(15, 16.5, 16, 36, 16, 0), humectaciones = c(30, 30, 0, 30, 30, 30),
+# 						vectorDIVHorario, valorUmbralMinimo = 5, dataSamplingTime = 60)
+## Error, vectores temperaturas, humectaciones no igual longitud; temperaturas más largo
+# CalculaDIV_Horario_ModeloRioja(temperaturas = c(15, 16.5, 16, 36, 16, 0, 26), humectaciones = c(30, 30, 0, 30, 30, 30),
+# 						vectorDIVHorario, valorUmbralMinimo = 5, dataSamplingTime = 60)
+## Actuación ante vectores con NA.Error, vectores temperaturas, humectaciones incluyen algún NA
+## Temperaturas
+# CalculaDIV_Horario_ModeloRioja(temperaturas = c(15, 16.5, NA, 36, 16, 0, 26), humectaciones = c(30, 30, 0, 0, 30, 30, 30),
+# 						vectorDIVHorario, valorUmbralMinimo = 5, dataSamplingTime = 60)
+## Humectaciones
+# CalculaDIV_Horario_ModeloRioja(temperaturas = c(15, 16.5, 16, 36, 16, 0, 26), humectaciones = c(30, 30, 0, NA, 30, 30, 30),
+# 						vectorDIVHorario, valorUmbralMinimo = 5, dataSamplingTime = 60)
 
 
 ######################## FUNCIONES AUXILIARES PARA GENERAR OBJETOS CON LOS RESULTADOS CALCULADOS USANDO DISTINTOS MÉTODOS Y MÉTRICAS ########################
-calculaDIVAcum <- function(DIV){ # Se usa en ambos modelos (americano y horario), para sumar el DIV diario de ayer y hoy
+calculaDIVAcum <- function(DIV){ # Se usa en ambos modelos (Americano y Rioja), para sumar el DIV diario de ayer y hoy
 	res <- rep(NA, length(DIV)) # <- c()
 	res[1] = DIV [1]
 	
@@ -196,7 +216,8 @@ calculaRiesgoDIV_MODELO_AMERICANO <- function(datosClimaticos, diasCalculo, esta
 
 # Función para obtener un objeto (dos data.frames) con los resultados según el modelo Horario, un objeto permite comparar el resultado con el modelo americano
 # el otro es el valor del DIV calculado para cada hora
-calculaRiesgoDIV_MODELO_RIOJA  <- function(datosClimaticos, diasCalculo, estacion, vectorDIVHorario, offsetHR, dataSamplingTime, valorHumectacionMinimo){
+calculaRiesgoDIV_MODELO_RIOJA  <- function(datosClimaticos, diasCalculo, estacion, vectorDIVHorario, offsetHR, dataSamplingTime, valorHumectacionMinimo)
+{
 	# GENERA DOS OBJETOS:
 	# DIV, que es una data.frame con valores DIARIOS, es un remedo del DIV Americano, aunque no tiene mucho sentido, es sólo por hacer equiparables los conceptos, se calcula a horaInicio (que viene prefijado en diasCalculo)
 	# DIV_Horario, que es una data.frame con valores HORARIOS, y tiene más sentido que lo anterior y permite integrar los cálculos del DIV para cada hora posteriormente
@@ -233,13 +254,13 @@ calculaRiesgoDIV_MODELO_RIOJA  <- function(datosClimaticos, diasCalculo, estacio
 	
 		if(nrow(datos) == 0) next
 		
-		DIV_HumectUmbral = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$humectacion, vectorDIVHorario, valorUmbralMinimo = valorHumectacionMinimo, dataSamplingTime)
-		DIV_HR80 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 80 - offsetHR, dataSamplingTime)
-		DIV_HR82.5 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 82.5 - offsetHR, dataSamplingTime)
-		DIV_HR85 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 85 - offsetHR, dataSamplingTime)
-		DIV_HR87.5 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 87.5 - offsetHR, dataSamplingTime)
-		DIV_HR90 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 90 - offsetHR, dataSamplingTime)
-		DIV_HR92.5 = calculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 92.5 - offsetHR, dataSamplingTime)
+		DIV_HumectUmbral = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$humectacion, vectorDIVHorario, valorUmbralMinimo = valorHumectacionMinimo, dataSamplingTime)
+		DIV_HR80 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 80 - offsetHR, dataSamplingTime)
+		DIV_HR82.5 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 82.5 - offsetHR, dataSamplingTime)
+		DIV_HR85 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 85 - offsetHR, dataSamplingTime)
+		DIV_HR87.5 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 87.5 - offsetHR, dataSamplingTime)
+		DIV_HR90 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 90 - offsetHR, dataSamplingTime)
+		DIV_HR92.5 = CalculaDIV_Horario_ModeloRioja(datos$temperatura, datos$HR, vectorDIVHorario, valorUmbralMinimo = 92.5 - offsetHR, dataSamplingTime)
 						
 		res <- data.frame(fecha = dia + 3600*24, estacion = estacion,
 					DIV_HumectUmbral$DIV_Horario_Acumulado,
@@ -424,7 +445,11 @@ calculaMomentosInfeccion <-function(fecha, temperatura, humectacion, umbralHumec
 
 
 
-######################## FUNCION PRINCIPAL QUE REALIZA TODO EL CONTROL DEL PROCESO DE CÁLCULO DE VALORES DIV LLAMANDO A LAS DISTINTAS FUNCIONES AUXILIARES Y GENERANDO UN OBJETO DE RESPUESTA CON TODA LA INFORMACIÓN OBTENIDA ########################
+######################## FUNCION PRINCIPAL REALIZA TODO EL CONTROL DEL PROCESO DE CÁLCULO DE VALORES DIV Y RIESGO ########################
+###
+### LLAMA A LAS DISTINTAS FUNCIONES AUXILIARES Y GENERA OBJETO DE RESPUESTA CON TODA LA INFORMACIÓN OBTENIDA
+###
+###########################################################################################################################################
 calculaRiesgoDIV_V20 <- function(estacion, fechaInicio, fechaFin,
 									matrizDIV, vectorDIVHorario,
 									horaInicio = "10", offsetHR = 0,
