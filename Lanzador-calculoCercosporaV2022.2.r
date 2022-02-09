@@ -1,12 +1,17 @@
-nombreProyecto = "ENF-Cercospora" # Se llamara como el directorio en el que esten los archivos, por ejemplo: ENF-StemfiliumPeral2016"
-numeroVersion = "2022.2"
+# Cargar PREVIAMENTE en memoria archivo configuracion
 
-# Configurar directorios
-dirPPAL <-"C:/ProcesosR/" # Servidor Desarrollo  y Servidor Producción
-dirFuncionesComunes <- "00. FuncionesComunes/"
-dirProyecto = nombreProyecto # Directorio general donde estarán los directorios con el código y los resultados procesados, en esta versión tiene que haber un .csv donde estará el listado de estaciones a procesar
-dirCodigo = "./00. Codigo" # Directorio donde se almacenarán los archivos del código
-dirResultados = "./01. Resultados" # Directorio donde se almacenarán los resultados obtenidos por el proeso
+
+# Comprobar que existen variables necesarias para el proceso en memoria
+variablesAComprobar = c("nombreProyecto", "numeroVersion",
+						 "dirPPAL", "dirFuncionesComunes", "dirProyecto", "dirCodigo", "dirResultados", # configuración directorios
+						 "DEBUG", "produccion", "enviarEmailsSoloSiHayAlerta", "enviarEmails", "salidaAzucarera", # variables de control
+						 "datosAProcesar") # configuración ejecución modelos (estaciones, fechas, zonas, etc)
+
+if(!any(sapply(variablesAComprobar, exists)))
+{
+	variablesQueNoExisten = variablesAComprobar[which(!sapply(variablesAComprobar, exists))]
+	stop(paste("Variable/s:", paste(variablesQueNoExisten, collapse = ","), "no definida"))
+}
 
 
 # Cargar funciones Comunes a todos los procesos y variables de seguridad (contraseñas BBDD, acceso a internet, etc)
@@ -40,13 +45,6 @@ setwd(dirCodigo)
 setwd("./..")
 
 
-# Variables de control del proceso
-DEBUG = FALSE # Si se hace = TRUE apareen algunos mensajes adicionales para controlar el proceso
-produccion = FALSE # TRUE  # Dejar esto en false si no se quiere que lleguen los e-mails a todo el mundo
-enviarEmailsSoloSiHayAlerta = FALSE #TRUE  # Dejar esto en true si se quiere que sólo lleguen los correos si el DIV de alguna de las estaciones procesadas en cada zona es superior a 2
-enviarEmails = TRUE # #TRUE # En false no se manda ningún e-mail
-salidaAzucareraAB = TRUE #FALSE #  # Dejar esto en false si no se quiere que lleguen los e-mails a las personas de azucarera (se les envía un informe reducido)
-
 
 # horaInicio es la variable que indica la hora a la que el proceso se tiene que calcular, se expresa en horario UTC
 # en el caso del modelo Rioja al ser un modelo horario los cálculos no dependen de esta variable
@@ -62,40 +60,23 @@ if(horaActual < 7){
 }
 
 
-
-#Inicialización
-# Crear archivo configuración # Crear tabla
-# configuracion2022 <- data.frame(estacion = c("SE03"), origenDato = "SIARNAcional", fechaInicio = as.POSIXct("2021-10-01 UTC"), fechaFin = Sys.time(), procesar = TRUE, zona = c('SEVILLA'), nombreEstacion = "Lebrija I", stringsAsFactors = F)
-# configuracion2022 <- rbind(configuracion2022,data.frame(estacion = c("SE21"), origenDato = "SIARNAcional", fechaInicio = as.POSIXct("2021-10-01 UTC"), fechaFin = Sys.time(), procesar = FALSE, zona = c('SEVILLA'), nombreEstacion = "Los Palacios (IFAPA)"))
-# configuracion2022 <- rbind(configuracion2022, list(estacion = c("2944"), origenDato = "CESENS", fechaInicio = NA, fechaFin = NA, procesar = FALSE, zona = c('SEVILLA'), nombreEstacion = "Cercospora Payuelos 2022"))
-# write.csv(configuracion2022, "ArchivoConfiguracion2022.csv", row.names = F)
- 
-
-# Desde tablas:
-# SELECT * FROM ENFERMEDADES.CONFIG_CERCOSPORA # CAMPOS: estacion, origenDato*, fechaInicio, fechaFin, procesar, zona*, nombreEstacion
-# * claves foráneas
-
-datosAProcesar = read.csv("ArchivoConfiguracion2022.csv", stringsAsFactors = FALSE)
-
-# Agrupar estaciones que se van a procesar
-
 # Validar los registros a procesar
 #1.- solo los que tengan toda la información de partida, columnas 2, 3, 5 y 6 (columna 4 FechaFin y columna 6 nombreEstacion permiten procesar estación)
 datosAProcesar <- datosAProcesar[complete.cases(datosAProcesar[,c(1,2,3,5,6)]), ]
 #2.- solo las estaciones que estén activas, campo $procesar (columna5) = TRUE
 datosAProcesar <- datosAProcesar[datosAProcesar$procesar,]
 
-zonas = unique(datosAProcesar$zona)
 
 setwd(dirResultados)
 
-if(DEBUG) zona = zonas[1]
+# Agrupar estaciones que se van a procesar
+zonas = unique(datosAProcesar$zona)
 
 for(zona in zonas)
 {
 	
 	estacionesAProcesar = datosAProcesar[datosAProcesar$zona == zona, ]
-	#InicializarVariables <- function()
+	#InicializarVariables 
 	archivos <- character()
 	archivosBasicos <- character()
 	textoDIVs = ''
@@ -137,17 +118,16 @@ for(zona in zonas)
 							'Desde ayer 14 enero, se ha puesto en marcha el sistema de cálculo de DIV y envío de informes para la zona sur.', #añaden los resultados de las estaciones "El Trobal" y "A2085".',
 							"\n\n",
 							"Un saludo\n\n",
-							"Para comunicar con nosotros no usar la dirección remitente de este correo sino siar.cida@larioja.org\n",
-							'\nDebajo los resúmenes de riesgo registrados según el modelo Rioja para prevención de la cercospora en remolacha azucarera')
+							"\nDebajo los resúmenes de riesgo registrados según el modelo Rioja para prevención de la cercospora en remolacha azucarera")
 		mensajeExtra = paste(mensajeExtra, textoDIVs, sep = '\n\n')
 		mensajeExtraAzucarera = mensajeExtra
 	}else if(Sys.Date() == as.Date("2021-06-25"))
 	{	
 		mensajeExtra = paste0("Buenos días\n\n",
-							'Desde hoy se deja de enviar los resultados de las estaciones desinstaladas: "El Trobal" y "Melendo".',
+							"Desde hoy se deja de enviar los resultados de las estaciones desinstaladas: NombreEstacion1 y NombreEstacion2.",
 							"\n\n",
 							"Un saludo\n\n",
-							'\nDebajo los resúmenes de riesgo registrados según el modelo horario')
+							"\nDebajo los resúmenes de riesgo registrados según el modelo horario")
 		mensajeExtra = paste(mensajeExtra, textoDIVs, sep = '\n\n')
 		mensajeExtraAzucarera = mensajeExtra
 	}else
@@ -160,7 +140,7 @@ for(zona in zonas)
 	if(DEBUG) print(list(mensajeExtra = mensajeExtra, mensajeExtraAzucarera = mensajeExtraAzucarera))
 	
 	if(DEBUG) print(paste("Se realiza envio de e-mail:", enviarEmails && alertaRiesgo))
-	if(DEBUG) print(paste("Se envian e-mails  a Azucarera:", salidaAzucareraAB && (enviarEmails && alertaRiesgo)))
+	if(DEBUG) print(paste("Se envian e-mails a Azucarera:", salidaAzucareraAB && (enviarEmails && alertaRiesgo)))
 	
 	if(enviarEmails && alertaRiesgo)
 	{	
@@ -178,5 +158,4 @@ for(zona in zonas)
 		BORRAR(archivos) # !!!por definir qué borra y como
 	}
 }
-	
-break	
+		
